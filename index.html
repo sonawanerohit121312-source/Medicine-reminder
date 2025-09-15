@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medicine Reminder</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f8fc;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 { color: #2c3e50; }
+    .container {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+    }
+    input, select, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 90%;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover { background: #2980b9; }
+    #stopBtn {
+      display: none;
+      background: red;
+      margin-top: 10px;
+    }
+    ul {
+      text-align: left;
+      margin-top: 20px;
+    }
+    li {
+      background: #ecf0f1;
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>💊 Medicine Reminder (Time Only)</h1>
+  <div class="container">
+    <label>Medicine Name:</label><br>
+    <input id="medicine" type="text" placeholder="e.g. Diabetes Tablet"><br>
+
+    <label>Time:</label><br>
+    <input id="timeInput" type="time"><br>
+
+    <label>Repeat Option:</label><br>
+    <select id="repeatOption">
+      <option value="once">Once Only</option>
+      <option value="daily">Daily (10 Days)</option>
+      <option value="alternate">Alternate Days (10 Days)</option>
+      <option value="weekdays">Mon-Wed-Fri (2 Weeks)</option>
+      <option value="custom">Custom Repeat (Enter Days)</option>
+    </select><br>
+
+    <input id="customDays" type="number" placeholder="Enter number of days" style="display:none;"><br>
+
+    <button onclick="addReminder()">Add Medicine Reminder</button>
+    <button id="stopBtn" onclick="stopAlarm()">Stop Alarm</button>
+
+    <h3>📋 Upcoming Reminders</h3>
+    <ul id="reminderList"></ul>
+  </div>
+
+  <!-- Alarm Sound -->
+  <audio id="alarmSound" src="https://www.soundjay.com/button/beep-07.wav" preload="auto" loop></audio>
+
+  <script>
+    let reminders = [];
+
+    // Show custom days input only if "custom" selected
+    document.getElementById("repeatOption").addEventListener("change", function() {
+      if (this.value === "custom") {
+        document.getElementById("customDays").style.display = "block";
+      } else {
+        document.getElementById("customDays").style.display = "none";
+      }
+    });
+
+    function addReminder() {
+      let medName = document.getElementById("medicine").value;
+      let timeValue = document.getElementById("timeInput").value;
+      let repeatOption = document.getElementById("repeatOption").value;
+      let customDays = parseInt(document.getElementById("customDays").value);
+
+      if (!medName || !timeValue) {
+        alert("⚠️ Please enter medicine name and time!");
+        return;
+      }
+
+      let [hours, minutes] = timeValue.split(":").map(Number);
+      let now = new Date();
+
+      if (repeatOption === "daily") {
+        for (let i = 0; i < 10; i++) {
+          let reminder = new Date(now);
+          reminder.setDate(now.getDate() + i);
+          reminder.setHours(hours, minutes, 0, 0);
+          reminders.push({ name: medName, time: reminder, triggered: false });
+        }
+      } 
+      else if (repeatOption === "alternate") {
+        for (let i = 0; i < 10; i += 2) {
+          let reminder = new Date(now);
+          reminder.setDate(now.getDate() + i);
+          reminder.setHours(hours, minutes, 0, 0);
+          reminders.push({ name: medName, time: reminder, triggered: false });
+        }
+      }
+      else if (repeatOption === "weekdays") {
+        // Next 14 days (2 weeks)
+        for (let i = 0; i < 14; i++) {
+          let reminder = new Date(now);
+          reminder.setDate(now.getDate() + i);
+          reminder.setHours(hours, minutes, 0, 0);
+          let day = reminder.getDay(); // 0=Sun,1=Mon...6=Sat
+          if (day === 1 || day === 3 || day === 5) {
+            reminders.push({ name: medName, time: reminder, triggered: false });
+          }
+        }
+      }
+      else if (repeatOption === "custom") {
+        if (!customDays || customDays < 1) {
+          alert("⚠️ Please enter valid custom days!");
+          return;
+        }
+        for (let i = 0; i < customDays; i++) {
+          let reminder = new Date(now);
+          reminder.setDate(now.getDate() + i);
+          reminder.setHours(hours, minutes, 0, 0);
+          reminders.push({ name: medName, time: reminder, triggered: false });
+        }
+      }
+      else { 
+        // once only
+        let reminder = new Date(now);
+        reminder.setHours(hours, minutes, 0, 0);
+        if (reminder < now) reminder.setDate(now.getDate() + 1); 
+        reminders.push({ name: medName, time: reminder, triggered: false });
+      }
+
+      updateReminderList();
+
+      document.getElementById("medicine").value = "";
+      document.getElementById("timeInput").value = "";
+      document.getElementById("repeatOption").value = "once";
+      document.getElementById("customDays").value = "";
+      document.getElementById("customDays").style.display = "none";
+    }
+
+    function updateReminderList() {
+      let list = document.getElementById("reminderList");
+      list.innerHTML = "";
+      reminders.sort((a, b) => a.time - b.time);
+      reminders.forEach(r => {
+        let li = document.createElement("li");
+        li.textContent = r.name + " → " + r.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+                         + " (" + r.time.toLocaleDateString() + ")";
+        list.appendChild(li);
+      });
+    }
+
+    // Check reminders every 10 seconds
+    setInterval(() => {
+      let now = new Date();
+      reminders.forEach(r => {
+        if (!r.triggered &&
+            now.getFullYear() === r.time.getFullYear() &&
+            now.getMonth() === r.time.getMonth() &&
+            now.getDate() === r.time.getDate() &&
+            now.getHours() === r.time.getHours() &&
+            now.getMinutes() === r.time.getMinutes()) {
+          
+          r.triggered = true;
+          document.getElementById("alarmSound").play();
+          document.getElementById("stopBtn").style.display = "inline-block";
+          alert("⏰ Time to take your medicine: " + r.name);
+        }
+      });
+    }, 10000);
+
+    function stopAlarm() {
+      document.getElementById("alarmSound").pause();
+      document.getElementById("alarmSound").currentTime = 0;
+      document.getElementById("stopBtn").style.display = "none";
+    }
+  </script>
+</body>
+</html>
