@@ -379,6 +379,17 @@
       loadReminders();
       updateReminderList();
       startChecker();
+      // Fix for browsers blocking autoplay
+document.body.addEventListener("click", () => {
+  const alarmSound = document.getElementById("alarmSound");
+  alarmSound.play().then(() => {
+    alarmSound.pause();
+    alarmSound.currentTime = 0;
+  }).catch(err => {
+    console.log("Autoplay blocked until user interacts:", err);
+  });
+}, { once: true });
+
       
       // Show custom days input only if "custom" selected
       document.getElementById("repeatOption").addEventListener("change", function() {
